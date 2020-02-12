@@ -1,6 +1,11 @@
-#include "ESP8266WiFi.h"
-#include "ESP8266WebServer.h"
-#include "EEPROM.h"
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <EEPROM.h>
+
+#include "include/Connector.h"
+#include "CTML/include/ctml.hpp"
+
 
 ESP8266WebServer server(80);
 
@@ -12,7 +17,7 @@ String SSIDINPUT = "<label for=\"ssid\">SSID:<input type=\"text\" id=\"ssid\" na
 String KEYINPUT = "<label for=\"key\">KEY:<input type=\"text\" id=\"key\" name=\"key\"></label>";
 String SUBMITBUTTON = "<input type=\"submit\" value=\"Bestätigen\">";
 
-
+//String genToggleButton()
 
 String BUTTONStyle(String background_color, String border_color, String text_shadow, String hover_background_color) {
   return String(".myButton { ") +
@@ -21,7 +26,7 @@ String BUTTONStyle(String background_color, String border_color, String text_sha
          "background-color:" + background_color + ";" +
          "-moz-border-radius:28px;" +
          "-webkit-border-radius:28px;" +
-         +"border-radius:28px;" +
+         "border-radius:28px;" +
          "border:1px solid " + border_color + ";" +
          "display:inline-block;" +
          "cursor:pointer;" +
