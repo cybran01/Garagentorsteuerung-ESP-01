@@ -1,17 +1,11 @@
 #pragma once
 
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
 #include <EEPROM.h>
-#include "Handler.h"
 
 class Connector
 {
 	public:
-		const int controlPin = 3; //GPIO3 conrols the relay
-		const int startupFixPin = 0; //TODO: lookup
-		const int readPin = 2; //GPIO2 ready the status of the door
-		
 		Connector(const int timeoutCountMax, const int retryDelay, const String fallbackSSID, const String fallbackWiFiKey)
 		{
 			String ssid, key;
@@ -33,43 +27,29 @@ class Connector
 			{
 				panicmode = true;
 				WiFi.mode(WIFI_AP); //Switch mode from client to access point
-				//WiFi.softAP("Garagentorsteuerung_Fallback", "123456789"); 
 				WiFi.softAP(fallbackSSID, fallbackWiFiKey); 
-				
-				/*TODO: properly
-				server.on("/", handleRootPathPanic); //default IP: 192.168.4.1
-				server.begin();
-				*/
 			}
-			else 
-			{
-				//Initialize pins to be used as GPIOs
-				pinMode(controlPin, FUNCTION_3);
-				pinMode(readPin, FUNCTION_3);
 
-				pinMode(startupFixPin, OUTPUT);
-				digitalWrite(startupFixPin, LOW);
-				pinMode(controlPin, OUTPUT);
-				digitalWrite(controlPin, HIGH);
-				pinMode(readPin, INPUT);
-				
-				/*TODO: properly
-				server.on("/", handleRootPath);    //Associate the handler function to the path
-				server.begin();                    //Start the server
-				*/
-			}
 		}
-		virtual ~Connector()
-		{}
-		bool doorOpen()
+		bool panicMode()
 		{
-			return (digitalRead(readPin) == LOW);
+			return panicmode;
 		}
 		
+		bool ok()
+		{
+			if (panicmode)
+				return true;
+			
+			return (WiFi.status() == WL_CONNECTED);
+		}
+		
+		virtual ~Connector()
+		{}
+		
 	private:
-		bool toggleDoor = false;
 		bool panicmode = false;
-		Handler server;
+		
 		void write_String(char add, String data) //write String to EEPROM
 		{
 		  int _size = data.length();

@@ -1,67 +1,79 @@
 #pragma once
 
 #include <EEPROM.h>
-#include "Connector.h"
+#include <ESP8266WebServer.h>
+
 #include "../CTML/include/ctml.hpp"
 
-/*
-#define MULTI_LINE_STRING(...) #__VA_ARGS__
-
-MULTI_LINE_STRING(.toggleBtn 
-			{ 
-				background-color: + background_color + ;
-				border:1px solid  + border_color + ; 
-				text-shadow:0px 1px 0px  + text_shadow + ;
-				width:60%;
-				height:150px;
-				-moz-border-radius:28px;
-				-webkit-border-radius:28px;
-				border-radius:28px;
-				display:inline-block;
-				cursor:pointer;
-				color:#ffffff;
-				font-family:Arial;
-				font-size:70px;
-				padding:16px 31px;
-				text-decoration:none;
-			}
-			.toggleBtn:hover 
-			{
-				background-color: + hover_background_color + ;
-			}
-			.toggleBtn:active 
-			{
-				position:relative;
-				top:1px;
-			})
-*/
 class Handler
 {
 	public:
-		Handler(Connector connect, int port, bool panicmode)
+		static const int controlPin = 3; //GPIO3 conrols the relay
+		static const int startupFixPin = 0; //TODO: lookup
+		static const int readPin = 2; //GPIO2 ready the status of the door
+		
+		static void init(const int port, const bool panicmode, const int pulsetime)
 		{
-			connector = connect;
-			//initialize server
+			toggleDoor = false;
+			prevMillis = 0;
+			pulseTime = pulsetime;
+			
+			server = new ESP8266WebServer(port);
+			
+			if (panicmode)
+				server->on("/", handleRootPathPanic);
+			else 
+			{
+				//Initialize pins to be used as GPIOs
+				pinMode(controlPin, FUNCTION_3);
+				pinMode(readPin, FUNCTION_3);
+
+				pinMode(startupFixPin, OUTPUT);
+				digitalWrite(startupFixPin, LOW);
+				pinMode(controlPin, OUTPUT);
+				digitalWrite(controlPin, HIGH);
+				pinMode(readPin, INPUT);
+				
+				server->on("/", handleRootPath);
+			}
+		}
+		static void handleRequests()
+		{
+			server->handleClient();
+			((unsigned long)(millis() - prevMillis) > pulseTime) ? digitalWrite(controlPin, HIGH) : digitalWrite(controlPin, LOW);
+		}
+		static bool toggleRequestPending()
+		{
+			return toggleDoor;
+		}
+		static void processToggleRequest()
+		{
+			prevMillis = millis();
+			toggleDoor = false;
 		}
 		virtual ~Handler()
 		{}
+		
+
 	private:
-		//ESP8266WebServer server;
-		Connector connector;
-		bool toggleDoor = false;
+		Handler(){}
+		static ESP8266WebServer* server;
+		static bool toggleDoor;
+		static unsigned long prevMillis;
+		static int pulseTime;
 		
-		void handleRootPath() //Handler for the root path for normal mode
-		{    
-		
-			String action = server.arg("action");//Handle incoming request to toggle state of door
+		static void handleRootPath() //Handler for the root path for normal mode
+		{    		
+			String action = server->arg("action");//Handle incoming request to toggle state of door
+
 			if (action == "toggle") 
 			{
 				toggleDoor = true;
 			}
 		
-			String curToggleBtnStyle = connector.doorOpen() ? toggleBtnStyle("#c74545", "#ab1919", "#662828", "#bd2a2a") /*red button when door open*/ : toggleBtnStyle("#44c767", "#18ab29", "#2f6627", "#5cbf2a") /*green button when door closed*/;
+			String curToggleBtnStyle = (digitalRead(readPin) == LOW) ? toggleBtnStyle("#c74545", "#ab1919", "#662828", "#bd2a2a") /*red button when door open*/ : toggleBtnStyle("#44c767", "#18ab29", "#2f6627", "#5cbf2a") /*green button when door closed*/;
 			
-			CTML::node toggleBtn("button.toggleBtn","Garagentor");
+			CTML::Node toggleBtn("button.toggleBtn","Garagentor");
 			toggleBtn.SetAttribute("name","action").SetAttribute("value","toggle");
 
 			CTML::Document document;
@@ -76,14 +88,13 @@ class Handler
 			.SetAttribute("method","post")
 			.AppendChild(toggleBtn));  
 
-			//server.send(200, "text/html; charset=utf-8", document.ToString());
+			server->send(200, "text/html; charset=utf-8", document.ToString().c_str());
 		}
-
-		void handleRootPathPanic() //Handler for the root path in case of panic mode
+		static void handleRootPathPanic() //Handler for the root path in case of panic mode
 		{
-			String ssid = server.arg("ssid");
-			String key = server.arg("key");
-
+			String ssid = server->arg("ssid");
+			String key = server->arg("key");
+			
 			if (ssid != "") {
 				Serial.println(ssid);
 				Serial.println(key);
@@ -107,10 +118,9 @@ class Handler
 			form.AppendChild(CTML::Node("input")).SetAttribute("type","sumbit").SetAttribute("value","Bestätigen").UseClosingTag(false);
 			document.AppendNodeToBody(form);
 			
-			//server.send(200, "text/html; charset=utf-8", document.ToSring());
+			server->send(200, "text/html; charset=utf-8", document.ToString().c_str());
 		}	
-		
-		inline String toggleBtnStyle(String background_color, String border_color, String text_shadow, String hover_background_color) 
+		static inline String toggleBtnStyle(String background_color, String border_color, String text_shadow, String hover_background_color) 
 		{
 			return String(".myButton { ") +
 			 "width:60%;" +
@@ -137,8 +147,7 @@ class Handler
 			 "top:1px;" +
 			 "}";
 		}
-		
-		void write_String(char add, String data) //write String to EEPROM
+		static void write_String(char add, String data) //write String to EEPROM
 		{
 		  int _size = data.length();
 		  int i;
@@ -148,8 +157,7 @@ class Handler
 		  }
 		  EEPROM.write(add + _size, '\0'); //Add termination null character for String Data
 		}
-
-		String read_String(char add) //read String from EEPROM
+		static String read_String(char add) //read String from EEPROM
 		{
 		  int i;
 		  char data[128]; //Max 128 Bytes
@@ -168,5 +176,7 @@ class Handler
 		
 };
 
-
-//#undef MULTI_LINE_STRING(...)
+ESP8266WebServer* Handler::server;
+bool Handler::toggleDoor;
+unsigned long Handler::prevMillis;
+int Handler::pulseTime;
