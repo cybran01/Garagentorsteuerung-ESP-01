@@ -8,9 +8,9 @@
 class Handler
 {
 	public:
-		static const int controlPin = 3; //GPIO3 conrols the relay
-		static const int startupFixPin = 0; //TODO: lookup
-		static const int readPin = 2; //GPIO2 ready the status of the door
+		static const int controlPin = 3; //GPIO3 controls the relay
+		static const int startupFixPin = 0; //Pin required to pull readPin low after startup to keep it from floating
+		static const int readPin = 2; //GPIO2 reads the status of the door
 		
 		static void init(const int port, const bool panicmode, const int pulsetime)
 		{
@@ -107,15 +107,15 @@ class Handler
 			}
 			
 			CTML::Document document;
-			CTML::Node form;
+			CTML::Node form("form");
 			form.SetAttribute("style","text-align:center").SetAttribute("method","post");
-			form.AppendChild(CTML::Node("label","SSID:")).AppendChild(CTML::Node("input")).SetAttribute("type","text").SetAttribute("name","ssid").UseClosingTag(false);
+			form.AppendChild(CTML::Node("label","SSID:").AppendChild(CTML::Node("input").SetAttribute("type","text").SetAttribute("name","ssid").UseClosingTag(false)));//AppendChild returns child or parent?
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
-			form.AppendChild(CTML::Node("label","KEY:")).AppendChild(CTML::Node("input")).SetAttribute("type","text").SetAttribute("name","key").UseClosingTag(false);
+			form.AppendChild(CTML::Node("label","KEY:").AppendChild(CTML::Node("input").SetAttribute("type","text").SetAttribute("name","key").UseClosingTag(false)));
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
-			form.AppendChild(CTML::Node("input")).SetAttribute("type","sumbit").SetAttribute("value","Bestätigen").UseClosingTag(false);
+			form.AppendChild(CTML::Node("input").SetAttribute("type","sumbit").SetAttribute("value","Bestätigen").UseClosingTag(false));
 			document.AppendNodeToBody(form);
 			
 			server->send(200, "text/html; charset=utf-8", document.ToString().c_str());
