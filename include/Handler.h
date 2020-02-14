@@ -20,8 +20,8 @@ class Handler
 			
 			server = new ESP8266WebServer(port);
 			
-			if (panicmode)
-				server->on("/", handleRootPathPanic);
+			if (panicmode)		
+				server->on("/", handleRootPathPanic);	
 			else 
 			{
 				//Initialize pins to be used as GPIOs
@@ -36,6 +36,8 @@ class Handler
 				
 				server->on("/", handleRootPath);
 			}
+			
+			server->begin();
 		}
 		static void handleRequests()
 		{
@@ -64,17 +66,21 @@ class Handler
 		
 		static void handleRootPath() //Handler for the root path for normal mode
 		{    		
-			String action = server->arg("action");//Handle incoming request to toggle state of door
+			if(server->arg("reset") != "")//Hidden parameter which allows one to reset the currently used credentials
+			{
+				EEPROM.begin(512);
+				write_String(0, "");
+				write_String(128, "");
+				EEPROM.end();
+				ESP.restart();
+			}
 
-			if (action == "toggle") 
+			if (server->arg("action") == "toggle") //Handle incoming request to toggle state of door
 			{
 				toggleDoor = true;
 			}
 		
-			String curToggleBtnStyle = (digitalRead(readPin) == LOW) ? toggleBtnStyle("#c74545", "#ab1919", "#662828", "#bd2a2a") /*red button when door open*/ : toggleBtnStyle("#44c767", "#18ab29", "#2f6627", "#5cbf2a") /*green button when door closed*/;
-			
-			CTML::Node toggleBtn("button.toggleBtn","Garagentor");
-			toggleBtn.SetAttribute("name","action").SetAttribute("value","toggle");
+			String curToggleBtnStyle = (digitalRead(readPin) == LOW) ? toggleBtnStyle("#44c767", "#18ab29", "#2f6627", "#5cbf2a") /*green button when door closed*/ : toggleBtnStyle("#c74545", "#ab1919", "#662828", "#bd2a2a") /*red button when door open*/;
 
 			CTML::Document document;
 			document.AppendNodeToHead(CTML::Node("meta")
@@ -82,11 +88,10 @@ class Handler
 			.SetAttribute("content","5")
 			.UseClosingTag(false));
 			document.AppendNodeToHead(CTML::Node("style",curToggleBtnStyle.c_str()));
-			document.AppendNodeToBody(CTML::Node("div").SetAttribute("style","height:10%"));
 			document.AppendNodeToBody(CTML::Node("form")
 			.SetAttribute("style","text-align:center")
 			.SetAttribute("method","post")
-			.AppendChild(toggleBtn));  
+			.AppendChild(CTML::Node("button.toggleBtn","Garagentor").SetAttribute("name","action").SetAttribute("value","toggle")));  
 
 			server->send(200, "text/html; charset=utf-8", document.ToString().c_str());
 		}
@@ -96,9 +101,6 @@ class Handler
 			String key = server->arg("key");
 			
 			if (ssid != "") {
-				Serial.println(ssid);
-				Serial.println(key);
-
 				EEPROM.begin(512);
 				write_String(0, ssid);
 				write_String(128, key);
@@ -109,20 +111,21 @@ class Handler
 			CTML::Document document;
 			CTML::Node form("form");
 			form.SetAttribute("style","text-align:center").SetAttribute("method","post");
-			form.AppendChild(CTML::Node("label","SSID:").AppendChild(CTML::Node("input").SetAttribute("type","text").SetAttribute("name","ssid").UseClosingTag(false)));//AppendChild returns child or parent?
+			form.AppendChild(CTML::Node("label","SSID:").AppendChild(CTML::Node("input").SetAttribute("type","text").SetAttribute("name","ssid").SetAttribute("maxlength","127").UseClosingTag(false)));//AppendChild returns child or parent?
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
-			form.AppendChild(CTML::Node("label","KEY:").AppendChild(CTML::Node("input").SetAttribute("type","text").SetAttribute("name","key").UseClosingTag(false)));
+			form.AppendChild(CTML::Node("label","KEY:").AppendChild(CTML::Node("input").SetAttribute("type","text").SetAttribute("name","key").SetAttribute("maxlength","127").UseClosingTag(false)));
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
 			form.AppendChild(CTML::Node("br").UseClosingTag(false));
-			form.AppendChild(CTML::Node("input").SetAttribute("type","sumbit").SetAttribute("value","Bestätigen").UseClosingTag(false));
+			form.AppendChild(CTML::Node("input").SetAttribute("type","submit").SetAttribute("value","Bestätigen").UseClosingTag(false));
 			document.AppendNodeToBody(form);
 			
 			server->send(200, "text/html; charset=utf-8", document.ToString().c_str());
 		}	
 		static inline String toggleBtnStyle(String background_color, String border_color, String text_shadow, String hover_background_color) 
 		{
-			return String(".myButton { ") +
+			return String(".toggleBtn{") +
+			 "margin-top:10%;" + 
 			 "width:60%;" +
 			 "height:150px;" +
 			 "background-color:" + background_color + ";" +
@@ -139,10 +142,10 @@ class Handler
 			 "text-decoration:none;" +
 			 "text-shadow:0px 1px 0px " + text_shadow + ";" +
 			 "}" +
-			 ".myButton:hover {" +
+			 ".toggleBtn:hover{" +
 			 "background-color:" + hover_background_color + ";" +
 			 "}" +
-			 ".myButton:active {" +
+			 ".toggleBtn:active{" +
 			 "position:relative;" +
 			 "top:1px;" +
 			 "}";

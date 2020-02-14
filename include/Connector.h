@@ -15,7 +15,9 @@ class Connector
 			ssid = read_String(0);
 			key = read_String(128);
 			EEPROM.end();
-			
+
+			WiFi.disconnect();		//Removes the stored credentials from the WiFi-Manager
+			WiFi.mode(WIFI_STA);	//Set client-mode (necessary, because Chip saves last setting)
 			WiFi.begin(ssid, key);  //Connect to the WiFi network
 			
 			int timeoutCount;
