@@ -4,3 +4,4 @@ Code written in [Arduino IDE](https://github.com/arduino/Arduino), the hardware 
 
 ### Hardware Sketch
 ![Hardware Sketch of Project](Sketch/Sketch_Steckplatine.png)
+
